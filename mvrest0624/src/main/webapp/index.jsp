@@ -5,7 +5,7 @@
 <body>
 
 <%
-   response.sendRedirect("api/employees");
+   response.sendRedirect("service/params/orders/5");
 %>
 
 </body>

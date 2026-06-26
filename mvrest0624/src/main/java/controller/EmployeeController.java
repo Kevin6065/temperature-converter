@@ -2,8 +2,12 @@ package controller;
 
 import model.Employee;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+
+import java.net.URI;
 import java.util.*;
 
 /**
@@ -75,4 +79,102 @@ public class EmployeeController {
 		DB.put(emp.getId(), emp);
 		return Response.status(Response.Status.CREATED).entity(emp).build();
 	}
+    @GET
+    @Path("/create/{id}")
+    public Response getEmployeeById2(@PathParam("id") int id) {
+        Employee emp = DB.get(id);
+        if (emp == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                           .entity("{\"message\":\"Employee not found: " + id + "\"}")
+                           .build();
+        }
+        return Response.ok(emp).build();
+    }
+    @POST
+    @Path("/create")
+    public Response create(Employee emp, @Context UriInfo uriInfo) {
+        if (emp.getName() == null || emp.getName().isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Name is required")
+                    .build();
+        }
+
+        int id = nextId++;
+        emp.setId(id);
+        DB.put(id, emp);
+
+        URI location = uriInfo.getAbsolutePathBuilder()
+                .path(String.valueOf(id))
+                .build();
+        System.out.println("Created Employee: " + emp + ", Location: " + location);
+        return Response.created(location)
+                .entity(emp)
+                .build();
+    }
+    
+ // ── @PUT + @Path + @PathParam ────────────────────────────
+    // 對應 PUT /api/employees/{id}
+    // 完整取代：客戶端需提供所有欄位
+    // 成功回傳 200 OK，不存在回傳 404，驗證失敗回傳 400
+    //────────────────────────────────────────────────────────────
+    @PUT
+    @Path("/{id}")
+    public Response update(@PathParam("id") int id, Employee updated) {
+        if (!DB.containsKey(id)) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Employee not found: " + id)
+                    .build();
+        }
+        if (updated.getName() == null || updated.getName().isBlank()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Name is required")
+                    .build();
+        }
+
+        updated.setId(id);
+        DB.put(id, updated);
+        return Response.ok(updated).build();
+    }
+    // ── @PATCH + @Path + @PathParam + Map<String, Object> ────
+    // 對應 PATCH /api/employees/{id}
+    // 只更新請求中有提供的欄位，其餘保持不變
+    // 數值型別轉換需用 ((Number) value).doubleValue()
+    // 成功回傳 200 OK，不存在回傳 404
+    //────────────────────────────────────────────────────────────
+    @PATCH
+    @Path("/{id}")
+    public Response partialUpdate(@PathParam("id") int id,
+                                  Map<String, Object> fields) {
+        Employee emp = DB.get(id);
+        if (emp == null) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Employee not found: " + id)
+                    .build();
+        }
+
+        fields.forEach((key, value) -> {
+            switch (key) {
+                case "name"       -> emp.setName((String) value);
+                case "department" -> emp.setDepartment((String) value);
+                case "salary"     -> emp.setSalary(
+                                        ((Number) value).doubleValue());
+            }
+        });
+
+        return Response.ok(emp).build();
+    }
+    
+    @DELETE
+    @Path("/{id}")
+    public Response delete(@PathParam("id") int id) {
+        if (!DB.containsKey(id)) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("Employee not found: " + id)
+                    .build();
+        }
+        Employee e1=DB.remove(id);
+        //return Response.noContent().build();
+        return Response.ok(e1).build();
+    }
+
 }
